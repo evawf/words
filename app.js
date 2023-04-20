@@ -1,6 +1,14 @@
 require("dotenv").config();
 const express = require("express");
 const app = express();
+const bodyParser = require("body-parser");
+
+// create application/json parser
+const jsonParser = bodyParser.json();
+
+// create application/x-www-form-urlencoded parser
+const urlencodedParser = bodyParser.urlencoded({ extended: false });
+
 const port = 8888;
 
 //************** Connect words DB **************//
@@ -20,17 +28,24 @@ app.get("/", async (req, res) => {
     const getWords = await db.any(
       "SELECT * FROM words ORDER BY random() LIMIT 3"
     );
-    const words = getWords.map((w) => " " + w.word + " ");
-    console.log("words: ", words);
-    res.send(`Welcome to words! Today's words: ${words}`);
+    const words = getWords.map((w) => w.word);
+    res.json({ words: words });
+    // res.send(`Welcome to words! Today's words: ${words}`);
   } catch (err) {
     console.log("msg: ", err);
   }
 });
 
-app.get("/new", async (req, res) => {
+app.post("/new", jsonParser, async (req, res) => {
   try {
-    res.send("Input words here: ");
+    const { newWords } = req.body;
+    newWords.forEach(async (w) => {
+      await db.none("INSERT INTO words(word) VALUES(${word})", {
+        word: `${w}`,
+      });
+    });
+
+    res.json({ newWords: newWords });
   } catch (err) {
     console.log("msg: ", err);
   }
