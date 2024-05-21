@@ -23,7 +23,17 @@ const db = pgp(
   `postgres://${dbSetting.userName}:${dbSetting.userPassord}@${dbSetting.dbHost}/${dbSetting.dbName}`
 );
 
-app.get("/", async (req, res) => {
+app.get("/allwords", async (req, res) => {
+  try {
+    const getWords = await db.any("SELECT * FROM words");
+    const words = getWords.map((w) => w.word);
+    res.json({ words: words });
+  } catch (err) {
+    console.log("msg: ", err);
+  }
+});
+
+app.get("/words", async (req, res) => {
   try {
     const getWords = await db.any(
       "SELECT * FROM words ORDER BY random() LIMIT 3"
@@ -45,7 +55,19 @@ app.post("/new", jsonParser, async (req, res) => {
       });
     });
 
-    res.json({ newWords: newWords });
+    res.json({ newWords: newWords, msg: "new words added!" });
+  } catch (err) {
+    console.log("msg: ", err);
+  }
+});
+
+app.delete("/delete", jsonParser, async (req, res) => {
+  try {
+    const { wordToDelete } = req.body;
+    console.log("word to delete: ", wordToDelete);
+    await db.result("DELETE FROM words WHERE word=$1", wordToDelete);
+
+    res.json({ msg: "Word deleted successful!" });
   } catch (err) {
     console.log("msg: ", err);
   }
