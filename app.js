@@ -1,7 +1,10 @@
 require("dotenv").config();
+const uuid = require("uuid");
 const express = require("express");
+var cors = require("cors");
 const app = express();
 const bodyParser = require("body-parser");
+const port = 8888;
 
 // create application/json parser
 const jsonParser = bodyParser.json();
@@ -9,7 +12,24 @@ const jsonParser = bodyParser.json();
 // create application/x-www-form-urlencoded parser
 const urlencodedParser = bodyParser.urlencoded({ extended: false });
 
-const port = 8888;
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// enable cors
+app.use(
+  cors({
+    credentials: true,
+    origin: process.env.FRONTEND_URL,
+  })
+);
+
+app.use(function (req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "X-Requested-With");
+  res.header("Access-Control-Allow-Methods", "POST, PUT, GET, OPTIONS");
+
+  next();
+});
 
 //************** Connect words DB **************//
 const dbSetting = {
@@ -26,7 +46,10 @@ const db = pgp(
 app.get("/allwords", async (req, res) => {
   try {
     const getWords = await db.any("SELECT * FROM words");
+
+    console.log(getWords);
     const words = getWords.map((w) => w.word);
+
     res.json({ words: words });
   } catch (err) {
     console.log("msg: ", err);
@@ -40,6 +63,7 @@ app.get("/words", async (req, res) => {
     );
     const words = getWords.map((w) => w.word);
     res.json({ words: words });
+
     // res.send(`Welcome to words! Today's words: ${words}`);
   } catch (err) {
     console.log("msg: ", err);
@@ -48,14 +72,27 @@ app.get("/words", async (req, res) => {
 
 app.post("/new", jsonParser, async (req, res) => {
   try {
-    const { newWords } = req.body;
-    newWords.forEach(async (w) => {
-      await db.none("INSERT INTO words(word) VALUES(${word})", {
-        word: `${w}`,
-      });
-    });
+    const { newWord } = req.body;
+    console.log("new word: ", newWord);
 
-    res.json({ newWords: newWords, msg: "new words added!" });
+    //Check if word already added in db
+    const checkIfNewWord = await db.any(
+      "SELECT * FROM words WHERE word=$1",
+      newWord
+    );
+    console.log("new word? ", !checkIfNewWord.length);
+
+    if (!checkIfNewWord.length) {
+      const id = uuid.v4();
+      await db.none("INSERT INTO words(id, word) VALUES($1, $2)", [
+        id,
+        newWord,
+      ]);
+
+      res.json({ newWord: newWord, id: id, newWordAdded: true });
+    } else {
+      res.json({ isExistingWord: true });
+    }
   } catch (err) {
     console.log("msg: ", err);
   }

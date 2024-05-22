@@ -1,0 +1,9 @@
+CREATE TABLE words (
+  id uuid PRIMARY KEY,
+  word character(50),
+  mastered boolean default false,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TABLE words;
