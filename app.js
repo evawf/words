@@ -46,11 +46,7 @@ const db = pgp(
 app.get("/allwords", async (req, res) => {
   try {
     const getWords = await db.any("SELECT * FROM words");
-
-    console.log(getWords);
-    const words = getWords.map((w) => w.word);
-
-    res.json({ words: words });
+    res.json({ words: getWords });
   } catch (err) {
     console.log("msg: ", err);
   }
@@ -93,6 +89,25 @@ app.post("/new", jsonParser, async (req, res) => {
     } else {
       res.json({ isExistingWord: true });
     }
+  } catch (err) {
+    console.log("msg: ", err);
+  }
+});
+
+app.put("/word/:id/update", jsonParser, async (req, res) => {
+  try {
+    const { word, mastered } = req.body;
+    const { id } = req.params;
+    console.log("word: ", word, mastered, id);
+
+    const getResult = await db.none(
+      `UPDATE words SET mastered=$1 WHERE id=$2`,
+      [mastered, id]
+    );
+
+    console.log(getResult);
+
+    res.json({ msg: "word status updated" });
   } catch (err) {
     console.log("msg: ", err);
   }
