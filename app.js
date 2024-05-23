@@ -45,7 +45,9 @@ const db = pgp(
 
 app.get("/allwords", async (req, res) => {
   try {
-    const getWords = await db.any("SELECT * FROM words");
+    const getWords = await db.any(
+      "SELECT * FROM words ORDER BY created_at DESC"
+    );
     res.json({ words: getWords });
   } catch (err) {
     console.log("msg: ", err);
@@ -58,6 +60,7 @@ app.get("/words", async (req, res) => {
       "SELECT * FROM words ORDER BY random() LIMIT 3"
     );
     const words = getWords.map((w) => w.word);
+
     res.json({ words: words });
 
     // res.send(`Welcome to words! Today's words: ${words}`);
@@ -96,13 +99,13 @@ app.post("/new", jsonParser, async (req, res) => {
 
 app.put("/word/:id/update", jsonParser, async (req, res) => {
   try {
-    const { word, mastered } = req.body;
+    const { is_mastered } = req.body;
     const { id } = req.params;
-    console.log("word: ", word, mastered, id);
+    console.log("word: ", is_mastered, id);
 
     const getResult = await db.none(
-      `UPDATE words SET mastered=$1 WHERE id=$2`,
-      [mastered, id]
+      `UPDATE words SET is_mastered=$1 WHERE id=$2`,
+      [is_mastered, id]
     );
 
     console.log(getResult);
@@ -113,11 +116,10 @@ app.put("/word/:id/update", jsonParser, async (req, res) => {
   }
 });
 
-app.delete("/delete", jsonParser, async (req, res) => {
+app.delete("/word/:id/delete", jsonParser, async (req, res) => {
   try {
-    const { wordToDelete } = req.body;
-    console.log("word to delete: ", wordToDelete);
-    await db.result("DELETE FROM words WHERE word=$1", wordToDelete);
+    const { id } = req.params;
+    await db.result("DELETE FROM words WHERE id=$1", id);
 
     res.json({ msg: "Word deleted successful!" });
   } catch (err) {

@@ -1,9 +1,11 @@
 CREATE TABLE words (
   id uuid PRIMARY KEY,
-  word character(50),
-  mastered boolean default false,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  word TEXT,
+  is_mastered boolean default false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 DROP TABLE words;
+
+SELECT * FROM words;
