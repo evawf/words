@@ -56,12 +56,14 @@ app.get("/allwords", async (req, res) => {
 
 app.get("/words", async (req, res) => {
   try {
+    const limit = 5;
     const getWords = await db.any(
-      "SELECT * FROM words ORDER BY random() LIMIT 3"
+      `SELECT * FROM words WHERE is_mastered=false ORDER BY random() LIMIT ($1)`,
+      limit
     );
     const words = getWords.map((w) => w.word);
 
-    res.json({ words: words });
+    res.json({ words: getWords });
 
     // res.send(`Welcome to words! Today's words: ${words}`);
   } catch (err) {
@@ -101,7 +103,6 @@ app.put("/word/:id/update", jsonParser, async (req, res) => {
   try {
     const { is_mastered } = req.body;
     const { id } = req.params;
-    console.log("word: ", is_mastered, id);
 
     const getResult = await db.none(
       `UPDATE words SET is_mastered=$1 WHERE id=$2`,
