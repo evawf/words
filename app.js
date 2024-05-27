@@ -105,11 +105,9 @@ app.put("/word/:id/update", jsonParser, async (req, res) => {
     const { id } = req.params;
 
     const getResult = await db.none(
-      `UPDATE words SET is_mastered=$1 WHERE id=$2`,
+      `UPDATE words SET is_mastered=$1, updated_at=NOW() WHERE id=$2`,
       [is_mastered, id]
     );
-
-    console.log(getResult);
 
     res.json({ msg: "word status updated" });
   } catch (err) {
