@@ -139,8 +139,22 @@ app.get("/:word/definition", jsonParser, async (req, res) => {
         definition: [JSON.parse(...wordData.definition)],
       });
     } else {
-      res.json({ msg: "no definition available" });
+      res.json({ msg: "failed" });
     }
+  } catch (err) {
+    console.log("msg: ", err);
+  }
+});
+
+app.put("/definition/update", jsonParser, async (req, res) => {
+  try {
+    const { audio, definition, word } = req.body;
+    const getResult = await db.none(
+      `UPDATE words SET audio=$1, definition=$2,q updated_at=NOW() WHERE word=$3`,
+      [audio, definition, word]
+    );
+    console.log("result: ", getResult);
+    res.json({ msg: "updated" });
   } catch (err) {
     console.log("msg: ", err);
   }
