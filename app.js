@@ -73,8 +73,8 @@ app.get("/words", async (req, res) => {
 
 app.post("/new", jsonParser, async (req, res) => {
   try {
-    const { newWord } = req.body;
-    console.log("new word: ", newWord);
+    const { newWord, audio, definition } = req.body;
+    console.log("new word: ", newWord, audio, definition);
 
     //Check if word already added in db
     const checkIfNewWord = await db.any(
@@ -85,10 +85,10 @@ app.post("/new", jsonParser, async (req, res) => {
 
     if (!checkIfNewWord.length) {
       const id = uuid.v4();
-      await db.none("INSERT INTO words(id, word) VALUES($1, $2)", [
-        id,
-        newWord,
-      ]);
+      await db.none(
+        "INSERT INTO words(id, word, audio, definition) VALUES($1, $2, $3, $4)",
+        [id, newWord, audio, definition]
+      );
 
       res.json({ newWord: newWord, id: id, newWordAdded: true });
     } else {
@@ -121,6 +121,26 @@ app.delete("/word/:id/delete", jsonParser, async (req, res) => {
     await db.result("DELETE FROM words WHERE id=$1", id);
 
     res.json({ msg: "Word deleted successful!" });
+  } catch (err) {
+    console.log("msg: ", err);
+  }
+});
+
+app.get("/:word/definition", jsonParser, async (req, res) => {
+  try {
+    const { word } = req.params;
+    console.log("word: ", word);
+    const wordData = await db.one("SELECT * FROM words WHERE word=$1", word);
+    console.log(wordData.definition);
+    if (wordData.definition !== null) {
+      res.json({
+        msg: "success",
+        audio: wordData.audio,
+        definition: [JSON.parse(...wordData.definition)],
+      });
+    } else {
+      res.json({ msg: "no definition available" });
+    }
   } catch (err) {
     console.log("msg: ", err);
   }

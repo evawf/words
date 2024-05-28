@@ -1,7 +1,9 @@
 CREATE TABLE words (
-  id uuid PRIMARY KEY,
+  id uuid PRIMARY KEY NOT NULL,
   word TEXT,
   is_mastered boolean default false,
+  audio TEXT,
+  definition Array,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -9,3 +11,12 @@ CREATE TABLE words (
 DROP TABLE words;
 
 SELECT * FROM words;
+
+ALTER TABLE words
+ADD audio TEXT;
+
+ALTER TABLE words
+ADD definition TEXT[];
+
+ALTER TABLE words
+DROP COLUMN definition;
