@@ -115,6 +115,22 @@ app.put("/word/:id/update", jsonParser, async (req, res) => {
   }
 });
 
+app.put("/word/:id/edit", jsonParser, async (req, res) => {
+  try {
+    const { word } = req.body;
+    const { id } = req.params;
+    const getResult = await db.none(
+      `UPDATE words SET word=$1, updated_at=NOW() WHERE id=$2`,
+      [word, id]
+    );
+    console.log("word: ", word, "\n", "id: ", id, "result: ", getResult);
+
+    res.json({ msg: "word updated" });
+  } catch (err) {
+    console.log("msg: ", err);
+  }
+});
+
 app.delete("/word/:id/delete", jsonParser, async (req, res) => {
   try {
     const { id } = req.params;
