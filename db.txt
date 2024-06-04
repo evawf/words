@@ -1,9 +1,42 @@
+// first table in DB
 CREATE TABLE words (
   id uuid PRIMARY KEY NOT NULL,
   word TEXT,
   is_mastered boolean default false,
   audio TEXT,
-  definition Array,
+  definition TEXT[],
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+// New tables in DB
+CREATE TABLE IF NOT EXISTS users (
+  id uuid PRIMARY KEY NOT NULL,
+  email TEXT NOT NULL,
+  password VARCHAR(100) NOT NULL,
+  is_active BOOLEAN DEFAULT true NOT NULL,
+  first_name TEXT,
+  last_name TEXT,
+  display_name TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE user_word (
+  id uuid PRIMARY KEY NOT NULL,
+  user_id uuid REFERENCES users(id),
+  word_id uuid REFERENCES words(id),
+  is_mastered boolean default false,
+  mastered_at TIMESTAMPTZ DEFAULT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE words (
+  id uuid PRIMARY KEY NOT NULL,
+  word TEXT,
+  audio TEXT,
+  definition TEXT[],
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -16,7 +49,26 @@ ALTER TABLE words
 ADD audio TEXT;
 
 ALTER TABLE words
+ADD mastered_at TIMESTAMPTZ DEFAULT NULL;
+
+ALTER TABLE words
 ADD definition TEXT[];
 
 ALTER TABLE words
 DROP COLUMN definition;
+
+SELECT * FROM words WHERE (current_date - created_at::date) IN (0,1,2,4,7,15,30,90,180,240,365) AND is_mastered=false;
+
+// Data - last 6 months
+SELECT DATE_TRUNC('month', created_at) AS month, COUNT(*)
+FROM words
+WHERE created_at::date > DATE_TRUNC('month', now()) - interval '5 months'
+GROUP BY month
+ORDER BY month ASC;
+
+SELECT DATE_TRUNC('month', mastered_at) AS month, COUNT(*)
+FROM words
+WHERE is_mastered=true 
+AND mastered_at::date > DATE_TRUNC('month', now()) - interval '5 months'
+GROUP BY month
+ORDER BY month ASC;
