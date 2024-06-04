@@ -160,7 +160,6 @@ app.put("/users/:id/edit", async (req, res) => {
         `UPDATE users SET display_name=$1, password=$2, first_name=$3, last_name=$4 WHERE id=$5`,
         [display_name, hashedPassword, first_name, last_name, id]
       );
-      console.log(updateUser);
       res.status(200).send({ message: "User updated" });
     }
   } catch (err) {
@@ -197,16 +196,12 @@ app.get("/allwords", async (req, res) => {
 
 // show words of the day
 app.get("/words", async (req, res) => {
+  const userInfo = req.session.user;
   try {
-    const limit = 5;
-    const getWords = await db.any(
-      `SELECT * FROM words WHERE is_mastered=false ORDER BY random() LIMIT ($1)`,
-      limit
-    );
-
     //Get words of the day
     const getWordsOfTheDay = await db.any(
-      `SELECT * FROM words WHERE (current_date - created_at::date) IN (0,1,2,4,7,15,30,90,180,240,365) AND is_mastered=false ORDER BY created_at DESC`
+      `SELECT * FROM words WHERE id IN (SELECT word_id FROM user_word WHERE (current_date - created_at::date) IN (0,1,2,4,7,15,30,90,180,240,365) AND is_mastered=false AND user_id=$1 ORDER BY created_at DESC)`,
+      userInfo.id
     );
 
     res.json({ words: getWordsOfTheDay });
@@ -230,56 +225,47 @@ app.post("/new", jsonParser, async (req, res) => {
     );
 
     if (!checkIfNewWord.length) {
-      const id = uuid.v4();
+      // add new word to word table
+      const wordId = uuid.v4();
       await db.none(
         "INSERT INTO words(id, word, audio, definition) VALUES($1, $2, $3, $4)",
-        [id, newWord, audio, definition]
+        [wordId, newWord, audio, definition]
       );
 
       // add it to user_word table
       const userWordId = uuid.v4();
       const userId = userInfo.id;
       await db.none(
-        "INSERT INTO user_word(id, user_id, word_id) VALUES($1,$2,$3)",
-        [userWordId, userId, id]
+        "INSERT INTO user_word(id, user_id, word_id) VALUES($1, $2, $3)",
+        [userWordId, userId, wordId]
       );
 
       res.json({ msg: "It's a new word and you added to your table" });
     } else {
-      const foundWord = checkIfNewWord[0];
-
       // check if current user already added to db user_word table
+      const foundWord = checkIfNewWord[0];
       const checkIfUserAlreadyAdded = await db.any(
         "SELECT * FROM user_word WHERE word_id=$1",
         foundWord.id
       );
 
       if (!checkIfUserAlreadyAdded.length) {
-        const id = uuid.v4();
+        // add word to user_word table
+        const userWordId = uuid.v4();
         const addNewWord = await db.none(
-          "INSERT INTO user_word(id, user_id, word_id)",
-          [id, userInfo.id, foundWord.id]
+          "INSERT INTO user_word(id, user_id, word_id) VALUES($1, $2, $3)",
+          [userWordId, userInfo.id, foundWord.id]
         );
-
-        console.log("addNewWord: ", addNewWord);
 
         res.json({ msg: "You just added a new word" });
       } else {
+        // word already added to user_word table
         res.json({ msg: "You already added this word" });
       }
-      // For existing word in words table but not added in user_word table
-      const id = uuid.v4();
-      const wordId = checkIfNewWord[0].id;
-      await db.none("INSERT INTO user_word(id, user_id, word_id", [
-        id,
-        userInfo.id,
-        wordId,
-      ]);
-
-      res.json({ msg: "Existing word, you just added to your list" });
     }
   } catch (err) {
     console.log("msg: ", err);
+    res.sendStatus(500);
   }
 });
 
@@ -303,6 +289,7 @@ app.put("/word/:id/update", jsonParser, async (req, res) => {
     res.json({ msg: "word status updated" });
   } catch (err) {
     console.log("msg: ", err);
+    res.sendStatus(500);
   }
 });
 
