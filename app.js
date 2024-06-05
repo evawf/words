@@ -168,6 +168,24 @@ app.put("/users/:id/edit", async (req, res) => {
   }
 });
 
+// admin route - view info
+app.get("/users", async (req, res) => {
+  try {
+    const user = req.session.user;
+    const userEmail = user.email;
+    console.log(userEmail);
+    if (userEmail === process.env.ADMIN) {
+      const data = await db.any("SELECT * FROM users");
+      res.status(200).send(data);
+    } else {
+      res.status(200).send({ message: "You are not authorized" });
+    }
+  } catch (err) {
+    console.log(err);
+    res.sendStatus(500);
+  }
+});
+
 // User log out
 app.post("/logout", async (req, res) => {
   try {
@@ -180,17 +198,19 @@ app.post("/logout", async (req, res) => {
   }
 });
 
-// Get all words
+// Get all words add by current user
 app.get("/allwords", async (req, res) => {
-  const userInfo = req.session.user;
+  const user = req.session.user;
 
   try {
     const getWords = await db.any(
-      "SELECT * FROM words ORDER BY created_at DESC"
+      `SELECT *, (SELECT is_mastered FROM user_word WHERE words.id=user_word.word_id) FROM words WHERE id IN(SELECT word_id FROM user_word WHERE user_id=$1) ORDER BY (SELECT created_at FROM user_word where user_word.word_id = words.id) DESC`,
+      user.id
     );
     res.json({ words: getWords });
   } catch (err) {
     console.log("msg: ", err);
+    res.sendStatus(500);
   }
 });
 
@@ -269,21 +289,24 @@ app.post("/new", jsonParser, async (req, res) => {
   }
 });
 
+// toggle is_mastered status
 app.put("/word/:id/update", jsonParser, async (req, res) => {
   try {
     const { is_mastered } = req.body;
     const { id } = req.params;
-
+    const user = req.session.user;
+    console.log(is_mastered, id, user.id);
     if (is_mastered) {
       const getResult = await db.none(
-        `UPDATE words SET is_mastered=$1, updated_at=NOW(), mastered_at=NOW() WHERE id=$2`,
-        [is_mastered, id]
+        `UPDATE user_word SET is_mastered=$1, updated_at=NOW(), mastered_at=NOW() WHERE word_id=$2 AND user_id=$3`,
+        [is_mastered, id, user.id]
       );
     } else {
       const getResult = await db.none(
-        `UPDATE words SET is_mastered=$1, updated_at=NOW(), mastered_at=NULL WHERE id=$2`,
-        [is_mastered, id]
+        `UPDATE user_word SET is_mastered=$1, updated_at=NOW(), mastered_at=NULL WHERE word_id=$2 AND user_id=$3`,
+        [is_mastered, id, user.id]
       );
+      console.log(getResult);
     }
 
     res.json({ msg: "word status updated" });
@@ -293,6 +316,7 @@ app.put("/word/:id/update", jsonParser, async (req, res) => {
   }
 });
 
+// edit word in words table
 app.put("/word/:id/edit", jsonParser, async (req, res) => {
   try {
     const { word } = req.body;
@@ -311,7 +335,11 @@ app.put("/word/:id/edit", jsonParser, async (req, res) => {
 app.delete("/word/:id/delete", jsonParser, async (req, res) => {
   try {
     const { id } = req.params;
-    await db.result("DELETE FROM words WHERE id=$1", id);
+    const user = req.session.user;
+    await db.result("DELETE FROM user_word WHERE word_id=$1 AND user_id=$2", [
+      id,
+      user.id,
+    ]);
 
     res.json({ msg: "Word deleted successful!" });
   } catch (err) {
@@ -359,14 +387,14 @@ app.get("/word/data/:selectedMonth", jsonParser, async (req, res) => {
     const numOfMonth = Number(selectedMonth) - 1;
     const queryMonths = numOfMonth.toString() + " months";
     const queryNumOfWords = `SELECT DATE_TRUNC('month', created_at) AS month, COUNT(*)
-                              FROM words
+                              FROM user_word
                               WHERE created_at::date >= DATE_TRUNC('month', now()) - interval $1
                               GROUP BY month
                               ORDER BY month ASC`;
     const getNumOfWords = await db.any(queryNumOfWords, queryMonths);
 
     const queryNumOfMastered = `SELECT DATE_TRUNC('month', mastered_at) AS month, COUNT(*)
-                                FROM words
+                                FROM user_word
                                 WHERE is_mastered=true 
                                 AND mastered_at::date > DATE_TRUNC('month', now()) - interval $1
                                 GROUP BY month
