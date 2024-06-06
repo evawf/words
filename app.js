@@ -74,6 +74,7 @@ const db = pgp(
 app.get("/test", async (req, res) => {
   res.send("ok");
 });
+
 // Routes - register new user
 app.post("/register", async (req, res) => {
   const { display_name, email, password } = req.body;
@@ -86,7 +87,6 @@ app.post("/register", async (req, res) => {
 
   try {
     const getUser = await db.any(`SELECT * FROM users WHERE email='${email}'`);
-    console.log("gerUser: ", getUser);
     const [user] = getUser;
     // Check if user account already exists
     if (getUser.length !== 0) {
@@ -112,7 +112,6 @@ app.post("/register", async (req, res) => {
 // User log in
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  console.log("login requested");
   try {
     const getUser = await db.any(`SELECT * FROM users WHERE email=$1`, email);
     const [user] = getUser;
@@ -121,8 +120,11 @@ app.post("/login", async (req, res) => {
     if (isMatch) {
       req.session.isAuthenticated = true;
       req.session.user = user;
-      console.log(req.session);
-      res.status(200).send({ message: "You have logged in", user: user });
+      res.status(200).send({
+        message: "You have logged in",
+        userName: user.display_name,
+        userId: user.id,
+      });
     } else {
       res
         .status(500)
@@ -185,7 +187,6 @@ app.get("/users", async (req, res) => {
   try {
     const user = req.session.user;
     const userEmail = user.email;
-    console.log(userEmail);
     if (userEmail === process.env.ADMIN) {
       const data = await db.any("SELECT * FROM users");
       res.status(200).send(data);
@@ -278,7 +279,10 @@ app.post("/new", jsonParser, async (req, res) => {
         [userWordId, userId, wordId]
       );
 
-      res.json({ msg: "It's a new word and you added to your table" });
+      res.json({
+        msg: "word added",
+        id: wordId,
+      });
     } else {
       // check if current user already added to db user_word table
       const foundWord = checkIfNewWord[0];
@@ -295,10 +299,10 @@ app.post("/new", jsonParser, async (req, res) => {
           [userWordId, userInfo.id, foundWord.id]
         );
 
-        res.json({ msg: "You just added a new word" });
+        res.json({ msg: "word added", id: foundWord.id });
       } else {
         // word already added to user_word table
-        res.json({ msg: "You already added this word" });
+        res.json({ msg: "You already added this word", isExistingWord: true });
       }
     }
   } catch (err) {
