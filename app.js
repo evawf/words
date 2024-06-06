@@ -31,9 +31,13 @@ app.use(
 );
 
 app.use(function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "X-Requested-With");
-  res.header("Access-Control-Allow-Methods", "POST, PUT, GET, OPTIONS");
+  res.header("Access-Control-Allow-Origin", "http://localhost:5173");
+  res.header("Access-Control-Allow-Credentials", true);
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept"
+  );
+  res.header("Access-Control-Allow-Methods", "POST, PUT, GET, DELETE");
 
   next();
 });
@@ -44,13 +48,14 @@ app.use(
   session({
     name: sessionName,
     secret: sessionSecret, // check
-    resave: false,
+    resave: true,
     saveUninitialized: true,
     cookie: {
-      maxAge: sessionLifetime,
-      sameSite: "strict",
-      httpOnly: true,
+      maxAge: 1000 * 60 * 60 * 24,
+      sameSite: "lax",
+      httpOnly: false,
       secure: false,
+      domain: "localhost",
     },
   })
 );
@@ -66,7 +71,9 @@ const pgp = require("pg-promise")();
 const db = pgp(
   `postgres://${dbSetting.userName}:${dbSetting.userPassord}@${dbSetting.dbHost}/${dbSetting.dbName}`
 );
-
+app.get("/test", async (req, res) => {
+  res.send("ok");
+});
 // Routes - register new user
 app.post("/register", async (req, res) => {
   const { display_name, email, password } = req.body;
@@ -80,18 +87,21 @@ app.post("/register", async (req, res) => {
   try {
     const getUser = await db.any(`SELECT * FROM users WHERE email='${email}'`);
     console.log("gerUser: ", getUser);
-    const user = getUser;
+    const [user] = getUser;
     // Check if user account already exists
-    if (user.length !== 0) {
+    if (getUser.length !== 0) {
       res
         .status(200)
         .send({ message: "User already exists, please head to login" });
     } else {
-      await db.none(
+      const addNewUser = await db.none(
         "INSERT INTO users (id, display_name, email, password) VALUES($1, $2, $3, $4)",
         [id, display_name, email, hashedPassword]
       );
-      res.status(200).send({ message: "User account registered successfully" });
+
+      res.status(200).send({
+        message: "User account registered successfully",
+      });
     }
   } catch (err) {
     console.log(err);
@@ -102,6 +112,7 @@ app.post("/register", async (req, res) => {
 // User log in
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
+  console.log("login requested");
   try {
     const getUser = await db.any(`SELECT * FROM users WHERE email=$1`, email);
     const [user] = getUser;
@@ -110,7 +121,8 @@ app.post("/login", async (req, res) => {
     if (isMatch) {
       req.session.isAuthenticated = true;
       req.session.user = user;
-      res.status(200).send({ message: "You have logged in" });
+      console.log(req.session);
+      res.status(200).send({ message: "You have logged in", user: user });
     } else {
       res
         .status(500)
@@ -200,14 +212,20 @@ app.post("/logout", async (req, res) => {
 
 // Get all words add by current user
 app.get("/allwords", async (req, res) => {
+  console.log(req.session);
   const user = req.session.user;
-
+  console.log("user: ", user);
   try {
-    const getWords = await db.any(
-      `SELECT *, (SELECT is_mastered FROM user_word WHERE words.id=user_word.word_id) FROM words WHERE id IN(SELECT word_id FROM user_word WHERE user_id=$1) ORDER BY (SELECT created_at FROM user_word where user_word.word_id = words.id) DESC`,
-      user.id
-    );
-    res.json({ words: getWords });
+    if (req.session && user) {
+      const getWords = await db.any(
+        `SELECT *, (SELECT is_mastered FROM user_word WHERE words.id=user_word.word_id) FROM words WHERE id IN(SELECT word_id FROM user_word WHERE user_id=$1) ORDER BY (SELECT created_at FROM user_word where user_word.word_id = words.id) DESC`,
+        user.id
+      );
+      console.log(getWords);
+      res.json({ words: getWords });
+    } else {
+      res.redirect("/login");
+    }
   } catch (err) {
     console.log("msg: ", err);
     res.sendStatus(500);
