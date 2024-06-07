@@ -113,7 +113,10 @@ app.post("/register", async (req, res) => {
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
-    const getUser = await db.any(`SELECT * FROM users WHERE email=$1`, email);
+    const getUser = await db.any(
+      `SELECT * FROM users WHERE email=$1 AND is_active=$2`,
+      [email, true]
+    );
     const [user] = getUser;
     const hashedPassword = user.password;
     const isMatch = bcrypt.compareSync(password.toString(), hashedPassword); // true
@@ -128,7 +131,7 @@ app.post("/login", async (req, res) => {
     } else {
       res
         .status(500)
-        .send({ message: "Your password or your email is not correct" });
+        .send({ message: "Your password or email is not correct" });
     }
   } catch (err) {
     console.log(err);
@@ -146,8 +149,14 @@ app.get("/users/:id", async (req, res) => {
   try {
     if (id === userInfo.id) {
       const getUser = await db.any(`SELECT * FROM users WHERE id=$1`, id);
-      const user = getUser;
-      res.status(200).send(user);
+      const user = {
+        displayName: getUser[0].display_name,
+        firstName: getUser[0].first_name,
+        lastName: getUser[0].last_name,
+        email: getUser[0].email,
+      };
+
+      res.status(200).send({ user });
     } else {
       res.status(200).send({ message: "You are not authorized" });
     }
@@ -176,6 +185,23 @@ app.put("/users/:id/edit", async (req, res) => {
       );
       res.status(200).send({ message: "User updated" });
     }
+  } catch (err) {
+    console.log(err);
+    res.sendStatus(500);
+  }
+});
+
+// delete user => set user as inactive
+app.put("/users/:id/deactivate", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deActiveUser = await db.none(
+      `UPDATE users SET is_active=$1 WHERE id=$2`,
+      [false, id]
+    );
+    console.log(deActiveUser);
+
+    res.status(200).send({ msg: "user deactivated" });
   } catch (err) {
     console.log(err);
     res.sendStatus(500);
