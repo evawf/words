@@ -1,4 +1,6 @@
 require("dotenv").config();
+
+const defineWord = require("wordreference");
 const uuid = require("uuid");
 const express = require("express");
 var cors = require("cors");
@@ -12,6 +14,7 @@ const bcrypt = require("bcryptjs");
 const sessionName = process.env.SESSION_NAME;
 const sessionSecret = process.env.SESSION_SECRET;
 const sessionLifetime = Number(process.env.SESSION_LIFETIME);
+const store = new session.MemoryStore(); //Note: Storing in-memory sessions is something that should be done only during development, NOT during production due to security risks.
 
 // create application/json parser
 const jsonParser = bodyParser.json();
@@ -48,13 +51,16 @@ app.use(
   session({
     name: sessionName,
     secret: sessionSecret, // check
-    resave: true,
+    resave: false,
+    store,
     saveUninitialized: true,
     cookie: {
+      path: "/",
       maxAge: sessionLifetime,
       sameSite: process.env.COOKIE_SAMESITE,
       httpOnly: true,
-      secure: process.env.COOKIE_SECURE,
+      secure: process.env.COOKIE_SECURE === "true",
+
       // domain: "localhost",
     },
   })
@@ -120,6 +126,7 @@ app.post("/login", async (req, res) => {
     if (isMatch) {
       req.session.isAuthenticated = true;
       req.session.user = user;
+      console.log(req.session);
       res.status(200).send({
         message: "You have logged in",
         userName: user.display_name,
@@ -234,9 +241,8 @@ app.post("/logout", async (req, res) => {
   }
 });
 
-// Get all words add by current user
+// Get all words added by current user
 app.get("/allwords", async (req, res) => {
-  console.log(req.session);
   const user = req.session.user;
   console.log("user: ", user);
   try {
@@ -245,7 +251,7 @@ app.get("/allwords", async (req, res) => {
         `SELECT *, (SELECT is_mastered FROM user_word WHERE words.id=user_word.word_id) FROM words WHERE id IN(SELECT word_id FROM user_word WHERE user_id=$1) ORDER BY (SELECT created_at FROM user_word where user_word.word_id = words.id) DESC`,
         user.id
       );
-      console.log(getWords);
+
       res.json({ words: getWords });
     } else {
       res.redirect("/login");
@@ -277,7 +283,8 @@ app.get("/words", async (req, res) => {
 // add new word
 app.post("/new", jsonParser, async (req, res) => {
   try {
-    const { newWord, audio, definition } = req.body;
+    const { newWord } = req.body;
+
     const userInfo = req.session.user;
 
     //Check if word already added in db words table
@@ -287,6 +294,11 @@ app.post("/new", jsonParser, async (req, res) => {
     );
 
     if (!checkIfNewWord.length) {
+      // get definition from wordreference
+      const getDefinition = await defineWord(newWord, "French-English");
+      const audio = getDefinition.audioLinks[0];
+      const definition = getDefinition.sections;
+
       // add new word to word table
       const wordId = uuid.v4();
       await db.none(
