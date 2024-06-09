@@ -4,7 +4,7 @@ const express = require("express");
 var cors = require("cors");
 const app = express();
 const bodyParser = require("body-parser");
-const port = 8888;
+const port = process.env.PORT;
 const session = require("express-session");
 const authSession = require("./authMiddleware");
 const bcrypt = require("bcryptjs");
@@ -52,9 +52,9 @@ app.use(
     saveUninitialized: true,
     cookie: {
       maxAge: sessionLifetime,
-      sameSite: "lax",
-      httpOnly: false,
-      secure: false,
+      sameSite: process.env.COOKIE_SAMESITE,
+      httpOnly: true,
+      secure: process.env.COOKE_SECURE,
       // domain: "localhost",
     },
   })
@@ -71,9 +71,6 @@ const pgp = require("pg-promise")();
 const db = pgp(
   `postgres://${dbSetting.userName}:${dbSetting.userPassord}@${dbSetting.dbHost}/${dbSetting.dbName}`
 );
-app.get("/test", async (req, res) => {
-  res.send("ok");
-});
 
 // Routes - register new user
 app.post("/register", async (req, res) => {
