@@ -54,7 +54,7 @@ app.use(
       maxAge: sessionLifetime,
       sameSite: process.env.COOKIE_SAMESITE,
       httpOnly: true,
-      secure: process.env.COOKE_SECURE,
+      secure: process.env.COOKIE_SECURE,
       // domain: "localhost",
     },
   })
