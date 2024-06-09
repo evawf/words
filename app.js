@@ -1,6 +1,5 @@
 require("dotenv").config();
-
-const defineWord = require("wordreference");
+const { defineWord } = require("wordreference");
 const uuid = require("uuid");
 const express = require("express");
 var cors = require("cors");
@@ -244,7 +243,6 @@ app.post("/logout", async (req, res) => {
 // Get all words added by current user
 app.get("/allwords", async (req, res) => {
   const user = req.session.user;
-  console.log("user: ", user);
   try {
     if (req.session && user) {
       const getWords = await db.any(
@@ -292,6 +290,7 @@ app.post("/new", jsonParser, async (req, res) => {
       "SELECT * FROM words WHERE word=$1",
       newWord
     );
+    console.log("check if new word:", checkIfNewWord);
 
     if (!checkIfNewWord.length) {
       // get definition from wordreference
@@ -352,7 +351,6 @@ app.put("/word/:id/update", jsonParser, async (req, res) => {
     const { is_mastered } = req.body;
     const { id } = req.params;
     const user = req.session.user;
-    console.log(is_mastered, id, user.id);
     if (is_mastered) {
       const getResult = await db.none(
         `UPDATE user_word SET is_mastered=$1, updated_at=NOW(), mastered_at=NOW() WHERE word_id=$2 AND user_id=$3`,
@@ -431,7 +429,6 @@ app.put("/definition/update", jsonParser, async (req, res) => {
       `UPDATE words SET audio=$1, definition=$2,q updated_at=NOW() WHERE word=$3`,
       [audio, definition, word]
     );
-    console.log("result: ", getResult);
     res.json({ msg: "updated" });
   } catch (err) {
     console.log("msg: ", err);
