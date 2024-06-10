@@ -13,7 +13,8 @@ const bcrypt = require("bcryptjs");
 const sessionName = process.env.SESSION_NAME;
 const sessionSecret = process.env.SESSION_SECRET;
 const sessionLifetime = Number(process.env.SESSION_LIFETIME);
-const store = new session.MemoryStore(); //Note: Storing in-memory sessions is something that should be done only during development, NOT during production due to security risks.
+// const store = new session.MemoryStore();
+//Note: Storing in-memory sessions is something that should be done only during development, NOT during production due to security risks.
 
 // create application/json parser
 const jsonParser = bodyParser.json();
@@ -51,7 +52,7 @@ app.use(
     name: sessionName,
     secret: sessionSecret, // check
     resave: false,
-    store,
+    // store,
     saveUninitialized: true,
     cookie: {
       path: "/",
@@ -125,7 +126,7 @@ app.post("/login", async (req, res) => {
     if (isMatch) {
       req.session.isAuthenticated = true;
       req.session.user = user;
-      console.log(req.session);
+      // console.log(req.session);
       res.status(200).send({
         message: "You have logged in",
         userName: user.display_name,
@@ -202,7 +203,7 @@ app.put("/users/:id/deactivate", async (req, res) => {
       `UPDATE users SET is_active=$1 WHERE id=$2`,
       [false, id]
     );
-    console.log(deActiveUser);
+    // console.log(deActiveUser);
 
     res.status(200).send({ msg: "user deactivated" });
   } catch (err) {
@@ -290,7 +291,6 @@ app.post("/new", jsonParser, async (req, res) => {
       "SELECT * FROM words WHERE word=$1",
       newWord
     );
-    console.log("check if new word:", checkIfNewWord);
 
     if (!checkIfNewWord.length) {
       // get definition from wordreference
@@ -361,7 +361,7 @@ app.put("/word/:id/update", jsonParser, async (req, res) => {
         `UPDATE user_word SET is_mastered=$1, updated_at=NOW(), mastered_at=NULL WHERE word_id=$2 AND user_id=$3`,
         [is_mastered, id, user.id]
       );
-      console.log(getResult);
+      // console.log(getResult);
     }
 
     res.json({ msg: "word status updated" });
