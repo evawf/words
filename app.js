@@ -321,8 +321,8 @@ app.post("/new", jsonParser, async (req, res) => {
       // check if current user already added to db user_word table
       const foundWord = checkIfNewWord[0];
       const checkIfUserAlreadyAdded = await db.any(
-        "SELECT * FROM user_word WHERE word_id=$1",
-        foundWord.id
+        "SELECT * FROM user_word WHERE word_id=$1 AND user_id=$2",
+        [foundWord.id, userInfo.id]
       );
 
       if (!checkIfUserAlreadyAdded.length) {
