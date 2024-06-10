@@ -55,7 +55,7 @@ app.use(
     // store,
     saveUninitialized: true,
     cookie: {
-      path: "/",
+      // path: "/",
       maxAge: sessionLifetime,
       sameSite: process.env.COOKIE_SAMESITE,
       httpOnly: true,
