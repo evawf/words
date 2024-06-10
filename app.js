@@ -243,12 +243,12 @@ app.post("/logout", async (req, res) => {
 
 // Get all words added by current user
 app.get("/allwords", async (req, res) => {
-  const user = req.session.user;
+  const userInfo = req.session.user;
   try {
-    if (req.session && user) {
+    if (req.session.isAuthenticated && userInfo) {
       const getWords = await db.any(
         `SELECT *, (SELECT is_mastered FROM user_word WHERE words.id=user_word.word_id) FROM words WHERE id IN(SELECT word_id FROM user_word WHERE user_id=$1) ORDER BY (SELECT created_at FROM user_word where user_word.word_id = words.id) DESC`,
-        user.id
+        userInfo.id
       );
 
       res.json({ words: getWords });
