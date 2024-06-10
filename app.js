@@ -247,7 +247,9 @@ app.get("/allwords", async (req, res) => {
   try {
     if (req.session.isAuthenticated && userInfo) {
       const getWords = await db.any(
-        `SELECT *, (SELECT is_mastered FROM user_word WHERE words.id=user_word.word_id) FROM words WHERE id IN(SELECT word_id FROM user_word WHERE user_id=$1) ORDER BY (SELECT created_at FROM user_word where user_word.word_id = words.id) DESC`,
+        `SELECT *, (SELECT is_mastered FROM user_word WHERE user_word.word_id=words.id AND user_word.user_id=$1) 
+        FROM words WHERE id IN(SELECT word_id FROM user_word WHERE user_id=$1) 
+        ORDER BY (SELECT created_at FROM user_word WHERE user_word.word_id = words.id AND user_word.user_id=$1) DESC`,
         userInfo.id
       );
 
