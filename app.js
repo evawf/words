@@ -267,7 +267,8 @@ app.get("/words", async (req, res) => {
   try {
     //Get words of the day
     const getWordsOfTheDay = await db.any(
-      `SELECT * FROM words WHERE id IN (SELECT word_id FROM user_word WHERE (current_date - created_at::date) IN (0,1,2,4,7,15,30,90,180,240,365) AND is_mastered=false AND user_id=$1 ORDER BY created_at DESC)`,
+      `SELECT * FROM words WHERE id IN (SELECT word_id FROM user_word WHERE (current_date - created_at::date) IN (0,1,2,4,7,15,30,90,180,240,365) AND is_mastered=false AND user_id=$1)
+      ORDER BY (SELECT user_word.created_at FROM user_word WHERE user_word.word_id=words.id AND user_id=$1) DESC`,
       userInfo.id
     );
 
