@@ -13,8 +13,6 @@ const bcrypt = require("bcryptjs");
 const sessionName = process.env.SESSION_NAME;
 const sessionSecret = process.env.SESSION_SECRET;
 const sessionLifetime = Number(process.env.SESSION_LIFETIME);
-// const store = new session.MemoryStore();
-//Note: Storing in-memory sessions is something that should be done only during development, NOT during production due to security risks.
 
 // create application/json parser
 const jsonParser = bodyParser.json();
@@ -29,12 +27,15 @@ app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
     credentials: true,
+    // origin: "capacitor://localhost",
     origin: process.env.FRONTEND_URL,
   })
 );
 
 app.use(function (req, res, next) {
   res.header("Access-Control-Allow-Origin", process.env.FRONTEND_URL);
+  // res.header("Access-Control-Allow-Origin", "capacitor://localhost");
+
   res.header("Access-Control-Allow-Credentials", true);
   res.header(
     "Access-Control-Allow-Headers",
@@ -50,24 +51,20 @@ app.set("trust proxy", process.env.NODE_ENV !== "production");
 app.use(
   session({
     name: sessionName,
-    secret: sessionSecret, // check
+    secret: sessionSecret,
     resave: false,
-    // store,
     saveUninitialized: true,
     cookie: {
-      // path: "/",
       expires: false,
       maxAge: sessionLifetime,
       sameSite: process.env.COOKIE_SAMESITE,
       httpOnly: true,
       secure: process.env.COOKIE_SECURE === "true",
-
-      // domain: "localhost",
     },
   })
 );
 
-//************** Connect words DB **************//
+//************** Connect DB **************//
 const dbSetting = {
   userName: process.env.USER_NAME,
   userPassord: process.env.USER_PASSWORD,
@@ -176,7 +173,7 @@ app.put("/users/:id/edit", async (req, res) => {
   let hashedPassword = "";
 
   // Hash password
-  if (password) {
+  if (password !== undefined) {
     const saltRounds = Number(process.env.SALT);
     const salt = bcrypt.genSaltSync(saltRounds);
     hashedPassword = bcrypt.hashSync(password.toString(), salt);
@@ -197,7 +194,7 @@ app.put("/users/:id/edit", async (req, res) => {
       }
     } else {
       if (id === userInfo.id) {
-        if (hashedPassword !== userInfo.password) {
+        if (hashedPassword !== userInfo.password && password !== undefined) {
           const updateUser = await db.none(
             `UPDATE users SET display_name=$1, password=$2, first_name=$3, last_name=$4, updated_at=NOW() WHERE id=$5`,
             [displayName, hashedPassword, firstName, lastName, id]
@@ -205,8 +202,8 @@ app.put("/users/:id/edit", async (req, res) => {
           res.status(200).send({ msg: "User updated" });
         } else {
           const updateUser = await db.none(
-            `UPDATE users SET display_name=$1, first_name=$2, last_name=$3,updated_at=NOW() WHERE id=$4`,
-            [displayName, firstName, lastName, id]
+            `UPDATE users SET display_name=$1, password=$2, first_name=$3, last_name=$4, updated_at=NOW() WHERE id=$5`,
+            [displayName, userInfo.password, firstName, lastName, id]
           );
           res.status(200).send({ msg: "User updated" });
         }
@@ -298,8 +295,6 @@ app.get("/words", async (req, res) => {
     );
 
     res.json({ words: getWordsOfTheDay });
-
-    // res.send(`Welcome to words! Today's words: ${words}`);
   } catch (err) {
     console.log("msg: ", err);
   }
@@ -387,7 +382,6 @@ app.put("/word/:id/update", jsonParser, async (req, res) => {
         `UPDATE user_word SET is_mastered=$1, updated_at=NOW(), mastered_at=NULL WHERE word_id=$2 AND user_id=$3`,
         [is_mastered, id, user.id]
       );
-      // console.log(getResult);
     }
 
     res.json({ msg: "word status updated" });
@@ -463,24 +457,31 @@ app.put("/definition/update", jsonParser, async (req, res) => {
 
 app.get("/word/data/:selectedMonth", jsonParser, async (req, res) => {
   try {
+    const userInfo = req.session.user;
     const { selectedMonth } = req.params;
     const numOfMonth = Number(selectedMonth) - 1;
     const queryMonths = numOfMonth.toString() + " months";
     const queryNumOfWords = `SELECT DATE_TRUNC('month', created_at) AS month, COUNT(*)
                               FROM user_word
-                              WHERE created_at::date >= DATE_TRUNC('month', now()) - interval $1
+                              WHERE user_id=$1 AND created_at::date >= DATE_TRUNC('month', now()) - interval $2
                               GROUP BY month
                               ORDER BY month ASC`;
-    const getNumOfWords = await db.any(queryNumOfWords, queryMonths);
+    const getNumOfWords = await db.any(queryNumOfWords, [
+      userInfo.id,
+      queryMonths,
+    ]);
 
     const queryNumOfMastered = `SELECT DATE_TRUNC('month', mastered_at) AS month, COUNT(*)
                                 FROM user_word
-                                WHERE is_mastered=true 
-                                AND mastered_at::date > DATE_TRUNC('month', now()) - interval $1
+                                WHERE user_id=$1 AND is_mastered=true 
+                                AND mastered_at::date > DATE_TRUNC('month', now()) - interval $2
                                 GROUP BY month
                                 ORDER BY month ASC`;
 
-    const getNumOfMastered = await db.any(queryNumOfMastered, queryMonths);
+    const getNumOfMastered = await db.any(queryNumOfMastered, [
+      userInfo.id,
+      queryMonths,
+    ]);
 
     function formatDate(timestamp) {
       const monthObj = {
