@@ -116,7 +116,6 @@ app.post("/register", async (req, res) => {
 // User log in
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  console.log(req.body);
   try {
     const getUser = await db.any(`SELECT * FROM users WHERE email=$1`, email);
 
@@ -126,16 +125,13 @@ app.post("/login", async (req, res) => {
     if (isMatch) {
       req.session.isAuthenticated = true;
       req.session.user = user;
-      console.log(req.session);
       res.status(200).send({
-        message: "You have logged in",
+        msg: "You have logged in",
         userName: user.display_name,
         userId: user.id,
       });
     } else {
-      res
-        .status(500)
-        .send({ message: "Your password or email is not correct" });
+      res.status(500).send({ msg: "Your password or email is not correct" });
     }
   } catch (err) {
     console.log(err);
