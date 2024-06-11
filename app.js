@@ -56,6 +56,7 @@ app.use(
     saveUninitialized: true,
     cookie: {
       // path: "/",
+      expires: false,
       maxAge: sessionLifetime,
       sameSite: process.env.COOKIE_SAMESITE,
       httpOnly: true,
@@ -115,18 +116,17 @@ app.post("/register", async (req, res) => {
 // User log in
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
+  console.log(req.body);
   try {
-    const getUser = await db.any(
-      `SELECT * FROM users WHERE email=$1 AND is_active=$2`,
-      [email, true]
-    );
+    const getUser = await db.any(`SELECT * FROM users WHERE email=$1`, email);
+
     const [user] = getUser;
     const hashedPassword = user.password;
     const isMatch = bcrypt.compareSync(password.toString(), hashedPassword); // true
     if (isMatch) {
       req.session.isAuthenticated = true;
       req.session.user = user;
-      // console.log(req.session);
+      console.log(req.session);
       res.status(200).send({
         message: "You have logged in",
         userName: user.display_name,
@@ -158,6 +158,7 @@ app.get("/users/:id", async (req, res) => {
         firstName: getUser[0].first_name,
         lastName: getUser[0].last_name,
         email: getUser[0].email,
+        isActive: getUser[0].is_active,
       };
 
       res.status(200).send({ user });
@@ -173,21 +174,47 @@ app.get("/users/:id", async (req, res) => {
 // Edit user profile info
 app.put("/users/:id/edit", async (req, res) => {
   const { id } = req.params;
-  const { display_name, password, first_name, last_name } = req.body;
   const userInfo = req.session.user;
+  const { displayName, password, firstName, lastName, email } = req.body;
+
+  let hashedPassword = "";
 
   // Hash password
-  const saltRounds = Number(process.env.SALT);
-  const salt = bcrypt.genSaltSync(saltRounds);
-  const hashedPassword = bcrypt.hashSync(password.toString(), salt);
+  if (password) {
+    const saltRounds = Number(process.env.SALT);
+    const salt = bcrypt.genSaltSync(saltRounds);
+    hashedPassword = bcrypt.hashSync(password.toString(), salt);
+  }
 
   try {
-    if (id === userInfo.id) {
-      const updateUser = await db.none(
-        `UPDATE users SET display_name=$1, password=$2, first_name=$3, last_name=$4 WHERE id=$5`,
-        [display_name, hashedPassword, first_name, last_name, id]
+    // if email is changed:
+    if (email !== userInfo.email) {
+      const isEmailAvailable = await db.any(
+        `SELECT id FROM users WHERE email=$1`,
+        email
       );
-      res.status(200).send({ message: "User updated" });
+      if (isEmailAvailable.length !== 0) {
+        res.send({ msg: "email is not available" });
+      } else {
+        await db.none("UPDATE users SET email=$1", email);
+        res.send({ msg: "User Updated" });
+      }
+    } else {
+      if (id === userInfo.id) {
+        if (hashedPassword !== userInfo.password) {
+          const updateUser = await db.none(
+            `UPDATE users SET display_name=$1, password=$2, first_name=$3, last_name=$4, updated_at=NOW() WHERE id=$5`,
+            [displayName, hashedPassword, firstName, lastName, id]
+          );
+          res.status(200).send({ msg: "User updated" });
+        } else {
+          const updateUser = await db.none(
+            `UPDATE users SET display_name=$1, first_name=$2, last_name=$3,updated_at=NOW() WHERE id=$4`,
+            [displayName, firstName, lastName, id]
+          );
+          res.status(200).send({ msg: "User updated" });
+        }
+      }
     }
   } catch (err) {
     console.log(err);
@@ -196,14 +223,14 @@ app.put("/users/:id/edit", async (req, res) => {
 });
 
 // delete user => set user as inactive
-app.put("/users/:id/deactivate", async (req, res) => {
+app.put("/users/:id/status", async (req, res) => {
   try {
     const { id } = req.params;
+    const { is_active } = req.body;
     const deActiveUser = await db.none(
       `UPDATE users SET is_active=$1 WHERE id=$2`,
-      [false, id]
+      [is_active, id]
     );
-    // console.log(deActiveUser);
 
     res.status(200).send({ msg: "user deactivated" });
   } catch (err) {

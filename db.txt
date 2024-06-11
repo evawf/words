@@ -72,3 +72,7 @@ WHERE is_mastered=true
 AND mastered_at::date > DATE_TRUNC('month', now()) - interval '5 months'
 GROUP BY month
 ORDER BY month ASC;
+
+DELETE FROM employee
+WHERE employee_id in (3,4)
+RETURNING *;
