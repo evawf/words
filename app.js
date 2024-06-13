@@ -33,8 +33,8 @@ app.use(
 );
 
 app.use(function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", process.env.FRONTEND_URL);
   // res.header("Access-Control-Allow-Origin", "capacitor://localhost");
+  res.header("Access-Control-Allow-Origin", process.env.FRONTEND_URL);
 
   res.header("Access-Control-Allow-Credentials", true);
   res.header(
@@ -115,20 +115,23 @@ app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
     const getUser = await db.any(`SELECT * FROM users WHERE email=$1`, email);
-
     const [user] = getUser;
-    const hashedPassword = user.password;
-    const isMatch = bcrypt.compareSync(password.toString(), hashedPassword); // true
-    if (isMatch) {
-      req.session.isAuthenticated = true;
-      req.session.user = user;
-      res.status(200).send({
-        msg: "You have logged in",
-        userName: user.display_name,
-        userId: user.id,
-      });
+    if (!user) {
+      res.send({ msg: "Your password or email is not correct" });
     } else {
-      res.status(500).send({ msg: "Your password or email is not correct" });
+      const hashedPassword = user.password;
+      const isMatch = bcrypt.compareSync(password.toString(), hashedPassword); // true
+      if (isMatch) {
+        req.session.isAuthenticated = true;
+        req.session.user = user;
+        res.status(200).send({
+          msg: "You have logged in",
+          userName: user.display_name,
+          userId: user.id,
+        });
+      } else {
+        res.send({ msg: "Your password or email is not correct" });
+      }
     }
   } catch (err) {
     console.log(err);
@@ -404,6 +407,7 @@ app.put("/word/:id/edit", jsonParser, async (req, res) => {
     res.json({ msg: "word edited" });
   } catch (err) {
     console.log("msg: ", err);
+    res.sendStatus(500);
   }
 });
 
@@ -419,6 +423,7 @@ app.delete("/word/:id/delete", jsonParser, async (req, res) => {
     res.json({ msg: "Word deleted successful!" });
   } catch (err) {
     console.log("msg: ", err);
+    res.sendStatus(500);
   }
 });
 
@@ -439,6 +444,7 @@ app.get("/:word/definition", jsonParser, async (req, res) => {
     }
   } catch (err) {
     console.log("msg: ", err);
+    res.sendStatus(500);
   }
 });
 
@@ -452,6 +458,7 @@ app.put("/definition/update", jsonParser, async (req, res) => {
     res.json({ msg: "updated" });
   } catch (err) {
     console.log("msg: ", err);
+    res.sendStatus(500);
   }
 });
 
@@ -527,6 +534,7 @@ app.get("/word/data/:selectedMonth", jsonParser, async (req, res) => {
     res.json({ msg: "data sent", monthsArr, arrOfWords, arrOfMastered });
   } catch (err) {
     console.log("msg: ", err);
+    res.sendStatus(500);
   }
 });
 
