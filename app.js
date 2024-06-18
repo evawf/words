@@ -399,12 +399,45 @@ app.put("/word/:id/edit", jsonParser, async (req, res) => {
   try {
     const { word } = req.body;
     const { id } = req.params;
-    const getResult = await db.none(
-      `UPDATE words SET word=$1, updated_at=NOW() WHERE id=$2`,
-      [word, id]
-    );
+    const userInfo = req.session.user;
 
-    res.json({ msg: "word edited" });
+    // 1. check if updated word exists in word table
+    const checkIfNewWord = await db.any(
+      "SELECT * FROM words WHERE word=$1",
+      word
+    );
+    if (!checkIfNewWord.length) {
+      // 2. if not, creat word in word table, get audio and definition
+      // get definition from wordreference
+      const getDefinition = await defineWord(word, "French-English");
+      const audio = getDefinition.audioLinks[0];
+      const definition = getDefinition.sections;
+
+      // add new word to word table
+      const wordId = uuid.v4();
+      await db.none(
+        "INSERT INTO words(id, word, audio, definition) VALUES($1, $2, $3, $4)",
+        [wordId, word, audio, definition]
+      );
+
+      // 3. update user_word table with new word id
+      await db.none(
+        "UPDATE user_word SET word_id=$1 WHERE word_id=$2 AND user_id=$3",
+        [wordId, id, userInfo.id]
+      );
+
+      res.json({ msg: "word edited" });
+    } else {
+      // 4. if yes, then get word id
+      const foundWord = checkIfNewWord[0];
+      // 5. update user_word table with new word info - id
+      await db.none(
+        "UPDATE user_word SET word_id=$1 WHERE word_id=$2 AND user_id=$3",
+        [foundWord.id, id, userInfo.id]
+      );
+
+      res.json({ msg: "word edited" });
+    }
   } catch (err) {
     console.log("msg: ", err);
     res.sendStatus(500);
