@@ -9,6 +9,7 @@ const port = process.env.PORT;
 const session = require("express-session");
 const authSession = require("./authMiddleware");
 const bcrypt = require("bcryptjs");
+const axios = require("axios");
 
 const sessionName = process.env.SESSION_NAME;
 const sessionSecret = process.env.SESSION_SECRET;
@@ -135,6 +136,57 @@ app.post("/login", async (req, res) => {
     }
   } catch (err) {
     console.log(err);
+    res.sendStatus(500);
+  }
+});
+
+// Google OAuth
+app.post("/auth/google", async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    const getUserInfo = await axios.get(
+      `https://www.googleapis.com/oauth2/v1/userinfo?access_token=${token}`
+    );
+
+    const { email, name, given_name, family_name, id } = getUserInfo.data;
+
+    const getUser = await db.any(`SELECT * FROM users WHERE email='${email}'`);
+    const [user] = getUser;
+
+    // check if existing user
+    if (getUser.length !== 0) {
+      req.session.isAuthenticated = true;
+      req.session.user = user;
+      res.status(200).send({
+        msg: "You have logged in",
+        userName: user.display_name,
+        userId: user.id,
+      });
+    } else {
+      const userId = uuid.v4();
+      const addNewUser = await db.none(
+        "INSERT INTO users (id, display_name, email, first_name, last_name, password) VALUES($1, $2, $3, $4, $5, $6)",
+        [userId, name, email, given_name, family_name, id]
+      );
+      req.session.isAuthenticated = true;
+      req.session.user = {
+        id: userId,
+        email: email,
+        password: id,
+        is_active: true,
+        first_name: given_name,
+        last_name: family_name,
+      };
+
+      res.status(200).send({
+        message: "User account registered successfully",
+        userName: name,
+        userId: userId,
+      });
+    }
+  } catch (err) {
+    console.log("msg: ", err);
     res.sendStatus(500);
   }
 });
@@ -565,6 +617,16 @@ app.get("/word/data/:selectedMonth", jsonParser, async (req, res) => {
     });
 
     res.json({ msg: "data sent", monthsArr, arrOfWords, arrOfMastered });
+  } catch (err) {
+    console.log("msg: ", err);
+    res.sendStatus(500);
+  }
+});
+
+app.get("/dashboard", async (req, res) => {
+  try {
+    const userInfo = req.session.user;
+    const getWordsData = await db.any(`SELECT (COUNT *)`);
   } catch (err) {
     console.log("msg: ", err);
     res.sendStatus(500);
