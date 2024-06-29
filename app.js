@@ -371,6 +371,7 @@ app.post("/new", jsonParser, async (req, res) => {
     if (!checkIfNewWord.length) {
       // get definition from wordreference
       const getDefinition = await defineWord(newWord, "French-English");
+      console.log("getDefinition: ", getDefinition);
       const audio = getDefinition.audioLinks[0];
       const definition = getDefinition.sections;
 
