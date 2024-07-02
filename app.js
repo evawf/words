@@ -357,24 +357,33 @@ app.get("/words", async (req, res) => {
 
 // add new word
 app.post("/new", jsonParser, async (req, res) => {
+  const { newWord } = req.body;
+  console.log(req.body);
+
+  const userInfo = req.session.user;
+
+  let checkIfNewWord = null;
   try {
-    const { newWord } = req.body;
-
-    const userInfo = req.session.user;
-
     //Check if word already added in db words table
-    const checkIfNewWord = await db.any(
-      "SELECT * FROM words WHERE word=$1",
-      newWord
-    );
-
-    if (!checkIfNewWord.length) {
-      // get definition from wordreference
+    checkIfNewWord = await db.any("SELECT * FROM words WHERE word=$1", newWord);
+  } catch (err) {
+    console.log("Select word from database faile with error: ", err);
+    res.sendStatus(500);
+    return;
+  }
+  if (!checkIfNewWord.length) {
+    // get definition from wordreference
+    try {
       const getDefinition = await defineWord(newWord, "French-English");
       console.log("getDefinition: ", getDefinition);
       const audio = getDefinition.audioLinks[0];
       const definition = getDefinition.sections;
-
+    } catch (err) {
+      console.log("Error getting definition: ", err);
+      res.status(500).json({ error: "Could not get definition" });
+      return;
+    }
+    try {
       // add new word to word table
       const wordId = uuid.v4();
       await db.none(
@@ -394,7 +403,13 @@ app.post("/new", jsonParser, async (req, res) => {
         msg: "word added",
         id: wordId,
       });
-    } else {
+    } catch (err) {
+      console.log("msg: ", err);
+      res.sendStatus(500);
+      return;
+    }
+  } else {
+    try {
       // check if current user already added to db user_word table
       const foundWord = checkIfNewWord[0];
       const checkIfUserAlreadyAdded = await db.any(
@@ -415,10 +430,11 @@ app.post("/new", jsonParser, async (req, res) => {
         // word already added to user_word table
         res.json({ msg: "You already added this word", isExistingWord: true });
       }
+    } catch (err) {
+      console.log("msg: ", err);
+      res.sendStatus(500);
+      return;
     }
-  } catch (err) {
-    console.log("msg: ", err);
-    res.sendStatus(500);
   }
 });
 
