@@ -169,6 +169,7 @@ app.post("/auth/google", async (req, res) => {
         "INSERT INTO users (id, display_name, email, first_name, last_name, password) VALUES($1, $2, $3, $4, $5, $6)",
         [userId, name, email, given_name, family_name, id]
       );
+
       req.session.isAuthenticated = true;
       req.session.user = {
         id: userId,
@@ -358,9 +359,8 @@ app.get("/words", async (req, res) => {
 // add new word
 app.post("/new", jsonParser, async (req, res) => {
   const { newWord } = req.body;
-  console.log(req.body);
-
   const userInfo = req.session.user;
+  let audio, definition;
 
   let checkIfNewWord = null;
   try {
@@ -375,9 +375,8 @@ app.post("/new", jsonParser, async (req, res) => {
     // get definition from wordreference
     try {
       const getDefinition = await defineWord(newWord, "French-English");
-      console.log("getDefinition: ", getDefinition);
-      const audio = getDefinition.audioLinks[0];
-      const definition = getDefinition.sections;
+      audio = getDefinition.audioLinks[0];
+      definition = getDefinition.sections;
     } catch (err) {
       console.log("Error getting definition: ", err);
       res.status(500).json({ error: "Could not get definition" });
