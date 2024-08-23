@@ -342,6 +342,7 @@ app.get("/allwords", async (req, res) => {
 // show words of the day
 app.get("/words", async (req, res) => {
   const userInfo = req.session.user;
+  console.log(userInfo);
   try {
     //Get words of the day
     const getWordsOfTheDay = await db.any(
