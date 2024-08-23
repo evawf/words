@@ -127,6 +127,8 @@ app.post("/login", async (req, res) => {
         console.log("it's a match!");
         req.session.isAuthenticated = true;
         req.session.user = user;
+        console.log("session: ", req.session.user);
+
         res.status(200).send({
           msg: "You have logged in",
           userName: user.display_name,
