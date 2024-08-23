@@ -114,6 +114,7 @@ app.post("/register", async (req, res) => {
 // User log in
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
+  console.log("user: ", req.body);
   try {
     const getUser = await db.any(`SELECT * FROM users WHERE email=$1`, email);
     const [user] = getUser;
