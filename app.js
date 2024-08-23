@@ -377,6 +377,7 @@ app.post("/new", jsonParser, async (req, res) => {
       const getDefinition = await defineWord(newWord, "French-English");
       audio = getDefinition.audioLinks[0];
       definition = getDefinition.sections;
+      console.log("definition: ", definition[0].translations);
     } catch (err) {
       console.log("Error getting definition: ", err);
       res.status(500).json({ error: "Could not get definition" });
@@ -401,6 +402,7 @@ app.post("/new", jsonParser, async (req, res) => {
       res.json({
         msg: "word added",
         id: wordId,
+        definition,
       });
     } catch (err) {
       console.log("msg: ", err);
