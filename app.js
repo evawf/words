@@ -124,10 +124,8 @@ app.post("/login", async (req, res) => {
       const hashedPassword = user.password;
       const isMatch = bcrypt.compareSync(password.toString(), hashedPassword); // true
       if (isMatch) {
-        console.log("it's a match!");
         req.session.isAuthenticated = true;
         req.session.user = user;
-        console.log("session: ", req.session.user);
 
         res.status(200).send({
           msg: "You have logged in",
@@ -345,9 +343,8 @@ app.get("/allwords", async (req, res) => {
 
 // show words of the day
 app.get("/words", async (req, res) => {
-  console.log("get words route");
   const userInfo = req.session.user;
-  console.log(userInfo);
+
   try {
     //Get words of the day
     const getWordsOfTheDay = await db.any(
