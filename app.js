@@ -127,6 +127,8 @@ app.post("/login", async (req, res) => {
         req.session.isAuthenticated = true;
         req.session.user = user;
 
+        console.log("login auth: ", req.session);
+
         res.status(200).send({
           msg: "You have logged in",
           userName: user.display_name,
@@ -181,6 +183,8 @@ app.post("/auth/google", async (req, res) => {
         first_name: given_name,
         last_name: family_name,
       };
+
+      console.log("google auth set: ", req.session);
 
       res.status(200).send({
         message: "User account registered successfully",
