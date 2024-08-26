@@ -49,6 +49,7 @@ app.use(function (req, res, next) {
 
 // express session auth
 app.set("trust proxy", process.env.NODE_ENV !== "production");
+app.set("trust proxy", true);
 app.use(
   session({
     name: sessionName,
