@@ -115,7 +115,7 @@ app.post("/register", async (req, res) => {
 // User log in
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  console.log("user: ", req.body);
+
   try {
     const getUser = await db.any(`SELECT * FROM users WHERE email=$1`, email);
     const [user] = getUser;
@@ -127,8 +127,6 @@ app.post("/login", async (req, res) => {
       if (isMatch) {
         req.session.isAuthenticated = true;
         req.session.user = user;
-
-        console.log("login auth: ", req.session);
 
         res.status(200).send({
           msg: "You have logged in",
@@ -184,8 +182,6 @@ app.post("/auth/google", async (req, res) => {
         first_name: given_name,
         last_name: family_name,
       };
-
-      console.log("google auth set: ", req.session);
 
       res.status(200).send({
         message: "User account registered successfully",
